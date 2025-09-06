@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>X-HOMES | Tenant Dashboard</title>
+  <!-- Firebase SDK (we will connect later) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { color: darkblue; }
+    #searchBar { width: 300px; padding: 8px; }
+    #results { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .propertyCard {
+      border: 1px solid #ddd; border-radius: 8px; padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .propertyCard img { width: 100%; border-radius: 6px; }
+    .btn {
+      display: inline-block; padding: 8px 12px; margin-top: 5px;
+      background: navy; color: white; border-radius: 5px; text-decoration: none;
+      cursor: pointer;
+    }
+    .btn:hover { background: darkred; }
+  </style>
+</head>
+<body>
+  <h2>Tenant Dashboard</h2>
+  <button onclick="logout()">Logout</button>
+
+  <h3>Search Properties</h3>
+  <input type="text" id="searchBar" placeholder="Search by location (e.g. Kumasi)">
+  <button onclick="searchProperties()">Search</button>
+
+  <div id="results">
+    <!-- Property cards will appear here -->
+  </div>
+
+  <script>
+    // 🔹 Firebase setup will be added later
+    function logout() {
+      alert("Logout will be connected to Firebase later.");
+    }
+
+    // Dummy property data for UI preview
+    const dummyProperties = [
+      {
+        propertyName: "2-Bedroom Apartment",
+        location: "Kumasi - Kejetia",
+        rent: 1200,
+        rooms: 2,
+        amenities: "Near market, hospital, water",
+        imageUrl: "https://via.placeholder.com/300x200"
+      },
+      {
+        propertyName: "Single Room Self-Contained",
+        location: "Accra - Madina",
+        rent: 500,
+        rooms: 1,
+        amenities: "Near school, light, water",
+        imageUrl: "https://via.placeholder.com/300x200"
+      }
+    ];
+
+    // Search function (UI only for now)
+    function searchProperties() {
+      const query = document.getElementById("searchBar").value.toLowerCase();
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+
+      const filtered = dummyProperties.filter(p =>
+        p.location.toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        resultsDiv.innerHTML = "<p>No properties found.</p>";
+        return;
+      }
+
+      filtered.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "propertyCard";
+        card.innerHTML = `
+          <img src="${p.imageUrl}" alt="Property Image">
+          <h4>${p.propertyName}</h4>
+          <p><b>Location:</b> ${p.location}</p>
+          <p><b>Rent:</b> GHS ${p.rent}/month</p>
+          <p><b>Rooms:</b> ${p.rooms}</p>
+          <p><b>Amenities:</b> ${p.amenities}</p>
+          <button class="btn">Notify Landlord</button>
+          <button class="btn">Book Now</button>
+        `;
+        resultsDiv.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
