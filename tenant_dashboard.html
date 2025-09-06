@@ -1,145 +1,168 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>X-HOMES | Tenant Dashboard</title>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { color: darkblue; }
-    #searchBar { width: 300px; padding: 8px; }
-    #results { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-    .propertyCard {
-      border: 1px solid #ddd; border-radius: 8px; padding: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6fb;
+      margin: 0;
+      padding: 0;
     }
-    .propertyCard img { width: 100%; border-radius: 6px; }
-    .btn {
-      display: inline-block; padding: 8px 12px; margin-top: 5px;
-      background: navy; color: white; border-radius: 5px; text-decoration: none;
+    header {
+      background: navy;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: navy;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .property-card {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .property-card h3 {
+      margin: 0 0 10px;
+      color: darkred;
+    }
+    .actions {
+      margin-top: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      margin-right: 8px;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
+      transition: 0.3s;
     }
-    .btn:hover { background: darkred; }
+    .notify-btn {
+      background: navy;
+      color: white;
+    }
+    .notify-btn:hover {
+      background: darkred;
+    }
+    .book-btn {
+      background: green;
+      color: white;
+    }
+    .book-btn:hover {
+      background: darkgreen;
+    }
+    .logout {
+      text-align: right;
+      margin-top: 10px;
+    }
+    .logout button {
+      background: crimson;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
-  <h2>Tenant Dashboard</h2>
-  <button onclick="logout()">Logout</button>
-
-  <h3>Search Properties</h3>
-  <input type="text" id="searchBar" placeholder="Search by location (e.g. Kumasi)">
-  <button onclick="searchProperties()">Search</button>
-
-  <div id="results">
-    <!-- Property cards will appear here -->
+  <header>Tenant Dashboard</header>
+  <div class="container">
+    <div class="logout">
+      <button onclick="logout()">Logout</button>
+    </div>
+    <h2>Find a Property</h2>
+    <input type="text" id="searchBox" placeholder="Search by location (e.g. Kumasi, Kejetia)">
+    <div id="propertyList"></div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
   <script>
-    // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    // 🔹 Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAouk2Vs5ApZaNT23yITk9tCqZFDLhloHQ",
-  authDomain: "x-homes-2e244.firebaseapp.com",
-  projectId: "x-homes-2e244",
-  storageBucket: "x-homes-2e244.firebasestorage.app",
-  messagingSenderId: "807749759634",
-  appId: "1:807749759634:web:b01b0707abdea703ceec4b"
-};
-
-    // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let allProperties = [];
-    let currentTenant = null;
+    const propertyList = document.getElementById("propertyList");
+    const searchBox = document.getElementById("searchBox");
 
-    // Check if tenant is logged in
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = "login.html";
-      } else {
-        currentTenant = user;
-        loadProperties();
-      }
-    });
+    // Fetch properties
+    async function loadProperties() {
+      const snapshot = await db.collection("properties").get();
+      displayProperties(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }
 
-    // Logout
+    function displayProperties(properties) {
+      propertyList.innerHTML = "";
+      properties.forEach(p => {
+        const div = document.createElement("div");
+        div.classList.add("property-card");
+        div.innerHTML = `
+          <h3>${p.title || "Room for Rent"}</h3>
+          <p><strong>Location:</strong> ${p.location}</p>
+          <p><strong>Price:</strong> GHS ${p.price}/month</p>
+          <div class="actions">
+            <button class="notify-btn" onclick="notifyLandlord('${p.ownerId}')">Notify Landlord</button>
+            <button class="book-btn" onclick="bookNow('${p.id}')">Book Now</button>
+          </div>
+        `;
+        propertyList.appendChild(div);
+      });
+    }
+
+    function notifyLandlord(landlordId) {
+      alert("Notification sent to landlord: " + landlordId);
+    }
+
+    function bookNow(propertyId) {
+      alert("Booking started for property: " + propertyId);
+    }
+
     function logout() {
       auth.signOut().then(() => {
         window.location.href = "login.html";
       });
     }
 
-    // Load all properties from Firestore
-    async function loadProperties() {
-      const snapshot = await db.collection("properties").get();
-      allProperties = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      displayProperties(allProperties);
-    }
+    searchBox.addEventListener("input", async () => {
+      const value = searchBox.value.toLowerCase();
+      const snapshot = await db.collection("properties")
+        .where("location", ">=", value)
+        .where("location", "<=", value + "\uf8ff")
+        .get();
+      displayProperties(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
-    // Display properties
-    function displayProperties(properties) {
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "";
-
-      if (properties.length === 0) {
-        resultsDiv.innerHTML = "<p>No properties found.</p>";
-        return;
-      }
-
-      properties.forEach(p => {
-        const card = document.createElement("div");
-        card.className = "propertyCard";
-        card.innerHTML = `
-          <img src="${p.imageUrl}" alt="Property Image">
-          <h4>${p.propertyName}</h4>
-          <p><b>Location:</b> ${p.location}</p>
-          <p><b>Rent:</b> GHS ${p.rent}/month</p>
-          <p><b>Rooms:</b> ${p.rooms}</p>
-          <p><b>Amenities:</b> ${p.amenities}</p>
-          <button class="btn" onclick="notifyLandlord('${p.id}', '${p.landlordId}')">Notify Landlord</button>
-          <button class="btn">Book Now</button>
-        `;
-        resultsDiv.appendChild(card);
-      });
-    }
-
-    // 🔹 Notify landlord about interest
-    async function notifyLandlord(propertyId, landlordId) {
-      if (!currentTenant) return alert("You must be logged in.");
-
-      try {
-        await db.collection("notifications").add({
-          propertyId: propertyId,
-          landlordId: landlordId,
-          tenantId: currentTenant.uid,
-          tenantEmail: currentTenant.email || "N/A",
-          timestamp: new Date(),
-          status: "pending"
-        });
-        alert("Notification sent to landlord successfully!");
-      } catch (err) {
-        console.error("Error sending notification:", err);
-        alert("Error: Could not send notification.");
-      }
-    }
-
-    // Search properties by location
-    function searchProperties() {
-      const query = document.getElementById("searchBar").value.toLowerCase();
-      const filtered = allProperties.filter(p =>
-        p.location.toLowerCase().includes(query)
-      );
-      displayProperties(filtered);
-    }
+    loadProperties();
   </script>
 </body>
 </html>
