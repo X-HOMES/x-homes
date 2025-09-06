@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>X-HOMES | Tenant Dashboard</title>
-  <!-- Firebase SDK (we will connect later) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
@@ -38,47 +38,54 @@
   </div>
 
   <script>
-    // 🔹 Firebase setup will be added later
+    // 🔹 Replace with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let allProperties = [];
+
+    // Check if tenant is logged in
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
+        loadProperties();
+      }
+    });
+
+    // Logout
     function logout() {
-      alert("Logout will be connected to Firebase later.");
+      auth.signOut().then(() => {
+        window.location.href = "login.html";
+      });
     }
 
-    // Dummy property data for UI preview
-    const dummyProperties = [
-      {
-        propertyName: "2-Bedroom Apartment",
-        location: "Kumasi - Kejetia",
-        rent: 1200,
-        rooms: 2,
-        amenities: "Near market, hospital, water",
-        imageUrl: "https://via.placeholder.com/300x200"
-      },
-      {
-        propertyName: "Single Room Self-Contained",
-        location: "Accra - Madina",
-        rent: 500,
-        rooms: 1,
-        amenities: "Near school, light, water",
-        imageUrl: "https://via.placeholder.com/300x200"
-      }
-    ];
+    // Load all properties from Firestore
+    async function loadProperties() {
+      const snapshot = await db.collection("properties").get();
+      allProperties = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      displayProperties(allProperties);
+    }
 
-    // Search function (UI only for now)
-    function searchProperties() {
-      const query = document.getElementById("searchBar").value.toLowerCase();
+    // Display properties
+    function displayProperties(properties) {
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
 
-      const filtered = dummyProperties.filter(p =>
-        p.location.toLowerCase().includes(query)
-      );
-
-      if (filtered.length === 0) {
+      if (properties.length === 0) {
         resultsDiv.innerHTML = "<p>No properties found.</p>";
         return;
       }
 
-      filtered.forEach(p => {
+      properties.forEach(p => {
         const card = document.createElement("div");
         card.className = "propertyCard";
         card.innerHTML = `
@@ -93,6 +100,15 @@
         `;
         resultsDiv.appendChild(card);
       });
+    }
+
+    // Search properties by location
+    function searchProperties() {
+      const query = document.getElementById("searchBar").value.toLowerCase();
+      const filtered = allProperties.filter(p =>
+        p.location.toLowerCase().includes(query)
+      );
+      displayProperties(filtered);
     }
   </script>
 </body>
