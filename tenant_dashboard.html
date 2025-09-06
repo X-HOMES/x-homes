@@ -1,139 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>X-HOMES | Tenant Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f4f6fb;
-    }
-    header {
-      background: darkred;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 20px auto;
-      padding: 10px;
-    }
-    .search-bar {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .search-bar input {
-      padding: 10px;
-      width: 60%;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    .search-bar button {
-      padding: 10px 16px;
-      background: navy;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .search-bar button:hover {
-      background: darkred;
-    }
-    .properties {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-    }
-    .property-card {
-      background: white;
-      border-radius: 12px;
-      padding: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .property-card img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-    .property-card button {
-      background: navy;
-      color: white;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 5px 5px 0 0;
-    }
-    .property-card button:hover {
-      background: darkred;
-    }
-    #map {
-      width: 100%;
-      height: 400px;
-      border-radius: 12px;
-      margin: 20px 0;
-    }
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:0; background:#f4f6fb; }
+    header { background: darkred; color: white; padding: 15px; text-align:center; font-size:20px; font-weight:bold; }
+    .container { max-width:1200px; margin:20px auto; padding:10px; }
+    .search-bar { text-align:center; margin-bottom:20px; }
+    .search-bar input { padding:10px; width:60%; border-radius:8px; border:1px solid #ccc; }
+    .search-bar button { padding:10px 16px; background:navy; color:white; border:none; border-radius:8px; cursor:pointer; }
+    .search-bar button:hover { background:darkred; }
+    #map { width:100%; height:400px; border-radius:12px; margin-bottom:20px; }
+    .properties { display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+    .property-card { background:white; border-radius:12px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); }
+    .property-card img { width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:10px; }
+    .property-card button { background:navy; color:white; padding:8px 14px; border:none; border-radius:8px; cursor:pointer; margin:5px 5px 0 0; }
+    .property-card button:hover { background:darkred; }
     /* Agreement Modal */
-    #agreementModal {
-      display: none;
-      position: fixed;
-      top: 10%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      width: 70%;
-      max-width: 800px;
-      box-shadow: 0 5px 25px rgba(0,0,0,0.3);
-      z-index: 1000;
-    }
-    #agreementModal h2 {
-      margin-top: 0;
-    }
-    #agreementContent {
-      margin: 15px 0;
-      line-height: 1.5;
-    }
-    #agreementModal button {
-      margin: 5px;
-    }
+    #agreementModal { display:none; position:fixed; top:8%; left:50%; transform:translateX(-50%); background:white; padding:20px; border-radius:12px; width:75%; max-width:900px; box-shadow:0 5px 25px rgba(0,0,0,0.3); z-index:1000; }
+    #agreementModal h2 { margin-top:0; }
+    #agreementContent { margin:15px 0; line-height:1.5; max-height: 60vh; overflow:auto; }
+    #agreementModal button { margin:6px; padding:8px 12px; border-radius:8px; border:none; cursor:pointer; }
+    .btn-approve { background:green; color:white; }
+    .btn-reject { background:crimson; color:white; }
+    .btn-close { background:#666; color:white; }
+    /* small helper */
+    .hidden { display:none; }
   </style>
 </head>
 <body>
   <header>Tenant Dashboard</header>
   <div class="container">
-    <!-- Search -->
     <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="Search by location (e.g., Kumasi, Accra)">
+      <input id="searchInput" placeholder="Search by location (e.g., Kumasi, Accra)" />
       <button onclick="searchProperties()">Search</button>
     </div>
 
-    <!-- Map -->
     <div id="map"></div>
 
-    <!-- Property Listings -->
     <div class="properties" id="propertiesList"></div>
   </div>
 
   <!-- Agreement Modal -->
-  <div id="agreementModal">
+  <div id="agreementModal" class="hidden">
     <h2>Tenancy Agreement</h2>
     <div id="agreementContent"></div>
-    <button onclick="approveAgreement()">✅ Approve</button>
-    <button onclick="rejectAgreement()">❌ Reject</button>
-    <button onclick="closeAgreementModal()">Close</button>
+    <div style="margin-top:12px;">
+      <button class="btn-approve" onclick="approveAgreement()">✅ Approve</button>
+      <button class="btn-reject" onclick="rejectAgreement()">❌ Reject</button>
+      <button class="btn-close" onclick="closeAgreementModal()">Close</button>
+    </div>
   </div>
 
-  <!-- Firebase + Google Maps + jsPDF -->
+  <!-- Firebase + jsPDF + Google Maps -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
@@ -141,180 +62,320 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+  // --------- CONFIG - REPLACE THESE WITH YOUR KEYS ----------
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID"
+  };
+  // ----------------------------------------------------------
 
-    let map, markers = [];
-    let selectedPropertyId = null;
-    let selectedAgreementData = null;
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-    // Initialize Google Map
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 7.9465, lng: -1.0232 }, // Ghana center
-        zoom: 7,
-      });
-    }
-    window.onload = initMap;
+  // Globals
+  let map, markers = [];
+  let selectedPropertyId = null;
+  let selectedAgreementData = null;
 
-    // Load properties from Firestore
-    async function loadProperties() {
-      const snapshot = await db.collection("properties").get();
+  // Initialize map
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 7.9465, lng: -1.0232 }, // Ghana center
+      zoom: 7,
+    });
+  }
+  window.onload = initMap;
+
+  // Load properties
+  async function loadProperties() {
+    try {
+      const snapshot = await db.collection("properties").orderBy("createdAt", "desc").get();
       const propertiesList = document.getElementById("propertiesList");
       propertiesList.innerHTML = "";
-      markers.forEach(m => m.setMap(null));
-      markers = [];
+      // clear old markers
+      markers.forEach(m => m.setMap(null)); markers = [];
 
       snapshot.forEach(doc => {
-        const p = doc.data();
+        const p = { id: doc.id, ...doc.data() };
+
         const div = document.createElement("div");
         div.className = "property-card";
         div.innerHTML = `
-          <img src="${p.images ? p.images[0] : 'https://via.placeholder.com/300'}" alt="Property">
-          <h3>${p.title}</h3>
-          <p><strong>Location:</strong> ${p.location}</p>
-          <p><strong>Price:</strong> GHS ${p.price}/month</p>
-          <button onclick="viewAgreement('${doc.id}')">View Agreement</button>
-          <button onclick="notifyLandlord('${doc.id}', '${p.ownerId}')">Notify Landlord</button>
-          <button onclick="bookNow('${doc.id}')">Book Now</button>
+          <img src="${p.images && p.images[0] ? p.images[0] : 'https://via.placeholder.com/600x400?text=No+Image'}" alt="Property">
+          <h3>${escapeHtml(p.title || 'Room for Rent')}</h3>
+          <p><strong>Location:</strong> ${escapeHtml(p.location || 'N/A')}</p>
+          <p><strong>Price:</strong> GHS ${Number(p.price || 0).toLocaleString()}</p>
+          <button onclick="viewAgreement('${p.id}')">View Agreement</button>
+          <button onclick="notifyLandlord('${p.id}', '${p.ownerId || ''}')">Notify Landlord</button>
+          <button onclick="bookNow('${p.id}')">Book Now</button>
         `;
         propertiesList.appendChild(div);
 
-        // Add marker to map
+        // add marker
         if (p.lat && p.lng) {
           const marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
             map: map,
-            title: p.title,
+            title: p.title || ''
           });
           markers.push(marker);
         }
       });
+    } catch (err) {
+      console.error("Error loading properties:", err);
+      alert("Failed to load properties: " + err.message);
     }
+  }
 
-    // Search properties by location
-    function searchProperties() {
-      const query = document.getElementById("searchInput").value.toLowerCase();
-      const cards = document.querySelectorAll(".property-card");
-      cards.forEach(card => {
-        const location = card.querySelector("p").innerText.toLowerCase();
-        card.style.display = location.includes(query) ? "block" : "none";
-      });
+  // Simple client-side search
+  function searchProperties() {
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    const cards = document.querySelectorAll(".property-card");
+    cards.forEach(card => {
+      const locationText = card.querySelector("p").innerText.toLowerCase();
+      card.style.display = locationText.includes(q) ? "block" : "none";
+    });
+  }
+
+  // ========== Agreement Modal Flow ==========
+  async function viewAgreement(propertyId) {
+    selectedPropertyId = propertyId;
+    try {
+      const docSnap = await db.collection("properties").doc(propertyId).get();
+      if (!docSnap.exists) {
+        alert("Agreement / property not found.");
+        return;
+      }
+      const data = docSnap.data();
+      selectedAgreementData = data;
+
+      document.getElementById("agreementContent").innerHTML = `
+        <p><strong>Rules & Regulations:</strong></p>
+        <div>${nl2br(escapeHtml(data.rules || "Not provided"))}</div>
+        <hr>
+        <p><strong>Tenancy Agreement Terms:</strong></p>
+        <div>${nl2br(escapeHtml(data.agreement || "Not provided"))}</div>
+      `;
+
+      document.getElementById("agreementModal").style.display = "block";
+    } catch (err) {
+      console.error("viewAgreement error:", err);
+      alert("Error fetching agreement: " + err.message);
     }
+  }
 
-    // Agreement functions
-    async function viewAgreement(propertyId) {
-      selectedPropertyId = propertyId;
+  function closeAgreementModal() {
+    document.getElementById("agreementModal").style.display = "none";
+  }
 
-      try {
-        const docSnap = await db.collection("properties").doc(propertyId).get();
-        if (docSnap.exists) {
-          const data = docSnap.data();
-          selectedAgreementData = data;
+  // Approve -> save decision + generate PDF
+  async function approveAgreement() {
+    if (!selectedPropertyId) return alert("No property selected.");
+    const user = auth.currentUser;
+    if (!user) return alert("You must be logged in.");
 
-          document.getElementById("agreementContent").innerHTML = `
-            <p><strong>Rules & Regulations:</strong></p>
-            <p>${data.rules || "Not provided"}</p>
-            <p><strong>Tenancy Agreement Terms:</strong></p>
-            <p>${data.agreement || "Not provided"}</p>
-          `;
-
-          document.getElementById("agreementModal").style.display = "block";
-        } else {
-          alert("No agreement found for this property.");
+    try {
+      // Save decision in Firestore under property.agreements.{tenantUid}
+      await db.collection("properties").doc(selectedPropertyId).update({
+        [`agreements.${user.uid}`]: {
+          status: "approved",
+          timestamp: new Date().toISOString(),
+          tenantName: (user.displayName || user.email)
         }
-      } catch (error) {
-        alert("Error fetching agreement: " + error.message);
-      }
+      });
+    } catch (err) {
+      console.error("Error saving decision:", err);
+      alert("Failed to save approval: " + err.message);
+      return;
     }
 
-    function closeAgreementModal() {
-      document.getElementById("agreementModal").style.display = "none";
-    }
-
-    async function rejectAgreement() {
-      if (!selectedPropertyId || !auth.currentUser) return;
-
-      try {
-        await db.collection("properties").doc(selectedPropertyId).update({
-          [`agreements.${auth.currentUser.uid}`]: {
-            status: "rejected",
-            timestamp: new Date().toISOString(),
-            tenantName: auth.currentUser.displayName || auth.currentUser.email
-          }
-        });
-
-        alert("You have rejected the agreement. Decision stored.");
-        closeAgreementModal();
-      } catch (error) {
-        alert("Error saving rejection: " + error.message);
-      }
-    }
-
-    async function approveAgreement() {
-      if (!selectedAgreementData || !selectedPropertyId || !auth.currentUser) return;
-
+    // Generate PDF contract
+    try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
+      // fetch landlord details if possible
+      let landlordInfo = { code: selectedAgreementData.ownerCode || "N/A", name: "Landlord" };
+      try {
+        if (selectedAgreementData.ownerId) {
+          const ldoc = await db.collection("landlords").doc(selectedAgreementData.ownerId).get();
+          if (ldoc.exists) {
+            const ld = ldoc.data();
+            landlordInfo.name = ld.name || landlordInfo.name;
+            landlordInfo.code = ld.xhomesCode || landlordInfo.code || (ld.ghanaCard || landlordInfo.code);
+          }
+        }
+      } catch(e){ /* silent */ }
+
+      const tenantLabel = user.displayName || (await fetchTenantName(user.uid)) || user.email;
+
+      const moveIn = new Date();
+      // optional: ask tenant for intended years in a real flow — here we'll show "N/A"
+      const expiry = "See contract";
+
       doc.setFontSize(14);
-      doc.text("X-HOMES Official Tenancy Agreement", 10, 20);
+      doc.text("X-HOMES Official Tenancy Agreement", 14, 20);
 
-      doc.setFontSize(12);
-      doc.text(`Tenant Name: ${auth.currentUser.displayName || auth.currentUser.email}`, 10, 40);
-      doc.text(`Landlord Code: ${selectedAgreementData.ownerCode || "N/A"}`, 10, 50);
-      doc.text(`Property: ${selectedAgreementData.title || "N/A"}`, 10, 60);
-      doc.text(`Location: ${selectedAgreementData.location || "N/A"}`, 10, 70);
-      doc.text(`Rent: GHS ${selectedAgreementData.price}/month`, 10, 80);
+      doc.setFontSize(11);
+      doc.text(`Tenant: ${tenantLabel}`, 14, 34);
+      doc.text(`Landlord: ${landlordInfo.name}`, 14, 42);
+      doc.text(`Landlord Code: ${landlordInfo.code}`, 14, 50);
+      doc.text(`Property: ${selectedAgreementData.title || "N/A"}`, 14, 58);
+      doc.text(`Location: ${selectedAgreementData.location || "N/A"}`, 14, 66);
+      doc.text(`Monthly Rent: GHS ${selectedAgreementData.price || "N/A"}`, 14, 74);
 
-      doc.text("Rules & Regulations:", 10, 100);
-      doc.text(selectedAgreementData.rules || "Not provided", 10, 110, { maxWidth: 180 });
+      doc.text("Rules & Regulations:", 14, 92);
+      doc.setFontSize(10);
+      doc.text(wrapText(selectedAgreementData.rules || "Not provided", 60), 14, 100);
 
-      doc.text("Tenancy Terms:", 10, 140);
-      doc.text(selectedAgreementData.agreement || "Not provided", 10, 150, { maxWidth: 180 });
+      doc.setFontSize(11);
+      doc.text("Tenancy Terms:", 14, 150);
+      doc.setFontSize(10);
+      doc.text(wrapText(selectedAgreementData.agreement || "Not provided", 60), 14, 158);
 
-      doc.text("Agreement Status: APPROVED ✅", 10, 200);
-
+      doc.setFontSize(11);
+      doc.text(`Status: APPROVED`, 14, 230);
       doc.save("Tenancy_Agreement.pdf");
 
+      alert("Agreement approved and PDF downloaded. Decision stored.");
+      closeAgreementModal();
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      alert("Approval saved but failed to generate PDF: " + err.message);
+    }
+  }
+
+  // Reject -> store decision
+  async function rejectAgreement() {
+    if (!selectedPropertyId) return alert("No property selected.");
+    const user = auth.currentUser;
+    if (!user) return alert("You must be logged in.");
+
+    try {
+      await db.collection("properties").doc(selectedPropertyId).update({
+        [`agreements.${user.uid}`]: {
+          status: "rejected",
+          timestamp: new Date().toISOString(),
+          tenantName: (user.displayName || user.email)
+        }
+      });
+      alert("You have rejected the agreement. Decision stored.");
+      closeAgreementModal();
+    } catch (err) {
+      console.error("Error saving rejection:", err);
+      alert("Failed to save rejection: " + err.message);
+    }
+  }
+
+  // ========== NOTIFY LANDLORD ==========
+  // Writes a notification document to top-level 'notifications' collection.
+  async function notifyLandlord(propertyId, landlordId) {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You must be logged in to notify a landlord.");
+      return;
+    }
+    try {
+      // try to read tenant profile for name/phone
+      let tenantName = user.displayName || user.email;
+      let tenantPhone = null;
       try {
-        await db.collection("properties").doc(selectedPropertyId).update({
-          [`agreements.${auth.currentUser.uid}`]: {
-            status: "approved",
-            timestamp: new Date().toISOString(),
-            tenantName: auth.currentUser.displayName || auth.currentUser.email
-          }
-        });
+        const tdoc = await db.collection("tenants").doc(user.uid).get();
+        if (tdoc.exists) {
+          const tdata = tdoc.data();
+          if (tdata.name) tenantName = tdata.name;
+          if (tdata.phone) tenantPhone = tdata.phone;
+        }
+      } catch (e) { /* ignore */ }
 
-        alert("Agreement approved ✅ and decision stored.");
-        closeAgreementModal();
-      } catch (error) {
-        alert("Error saving approval: " + error.message);
-      }
-    }
+      // get property title for friendly notification
+      let propertyTitle = propertyId;
+      try {
+        const psnap = await db.collection("properties").doc(propertyId).get();
+        if (psnap.exists) propertyTitle = psnap.data().title || propertyTitle;
+      } catch(e){}
 
-    // Placeholder functions
-    function notifyLandlord(propertyId, ownerId) {
-      alert("Notify Landlord feature coming soon!");
-    }
-    function bookNow(propertyId) {
-      alert("Book Now feature coming soon!");
-    }
+      // create notification
+      await db.collection("notifications").add({
+        landlordId: landlordId || null,
+        propertyId,
+        propertyTitle,
+        tenantId: user.uid,
+        tenantName,
+        tenantEmail: user.email || null,
+        tenantPhone: tenantPhone || null,
+        timestamp: new Date().toISOString(),
+        status: "pending" // pending / viewed / responded
+      });
 
-    // Load properties after login
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        loadProperties();
+      alert("Notification sent to landlord. They will see your request in their notifications.");
+    } catch (err) {
+      console.error("notifyLandlord error:", err);
+      alert("Failed to send notification: " + err.message);
+    }
+  }
+
+  // ========== BOOK NOW (placeholder) ==========
+  function bookNow(propertyId) {
+    alert("Booking & payment flow coming next — this will reserve the property and open payment.");
+  }
+
+  // ========== Utility helpers ==========
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function nl2br(str) {
+    return (str || "").replace(/\n/g, "<br/>");
+  }
+
+  function wrapText(text, maxCharsPerLine = 60) {
+    if (!text) return "";
+    const words = text.split(/\s+/);
+    let line = "", result = "";
+    words.forEach(w => {
+      if ((line + " " + w).trim().length > maxCharsPerLine) {
+        result += line + "\n";
+        line = w;
       } else {
-        window.location.href = "login.html";
+        line = (line + " " + w).trim();
       }
     });
+    if (line) result += line;
+    return result;
+  }
+
+  async function fetchTenantName(uid) {
+    try {
+      const tdoc = await db.collection("tenants").doc(uid).get();
+      if (tdoc.exists) {
+        const d = tdoc.data();
+        return d.name || d.email || null;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  // --------- Auth handling & initial load ----------
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      // optionally, ensure user doc exists in tenants collection on first login
+      // but we won't force it here
+      loadProperties();
+    } else {
+      window.location.href = "login.html";
+    }
+  });
+
   </script>
 </body>
 </html>
