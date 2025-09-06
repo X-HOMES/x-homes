@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>X-HOMES | Landlord Dashboard</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
+</head>
+<body>
+  <h2>Landlord Dashboard</h2>
+  <button onclick="logout()">Logout</button>
+
+  <h3>Upload New Property</h3>
+  <form id="propertyForm">
+    <input type="text" id="propertyName" placeholder="Property Name" required><br><br>
+    <input type="text" id="location" placeholder="Location (e.g. Kumasi - Kejetia)" required><br><br>
+    <input type="number" id="rent" placeholder="Monthly Rent (GHS)" required><br><br>
+    <input type="number" id="rooms" placeholder="Number of Rooms Available" required><br><br>
+    <textarea id="amenities" placeholder="Amenities (e.g. Near school, hospital, market)" required></textarea><br><br>
+    <input type="file" id="image" accept="image/*" required><br><br>
+    <button type="submit">Add Property</button>
+  </form>
+
+  <p id="msg"></p>
+
+  <h3>Your Properties</h3>
+  <ul id="propertyList"></ul>
+
+  <script>
+    // 🔹 Replace with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // Check if landlord is logged in
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
+        loadProperties(user.uid);
+      }
+    });
+
+    // Handle Property Upload
+    document.getElementById("propertyForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const propertyName = document.getElementById("propertyName").value;
+      const location = document.getElementById("location").value;
+      const rent = document.getElementById("rent").value;
+      const rooms = document.getElementById("rooms").value;
+      const amenities = document.getElementById("amenities").value;
+      const imageFile = document.getElementById("image").files[0];
+
+      try {
+        // Upload image to Firebase Storage
+        const storageRef = storage.ref("properties/" + user.uid + "/" + Date.now() + "_" + imageFile.name);
+        await storageRef.put(imageFile);
+        const imageUrl = await storageRef.getDownloadURL();
+
+        // Save property details in Firestore
+        await db.collection("properties").add({
+          landlordId: user.uid,
+          propertyName,
+          location,
+          rent: parseFloat(rent),
+          rooms: parseInt(rooms),
+          amenities,
+          imageUrl,
+          createdAt: new Date()
+        });
+
+        document.getElementById("msg").innerText = "✅ Property added successfully!";
+        loadProperties(user.uid);
+        document.getElementById("propertyForm").reset();
+
+      } catch (error) {
+        document.getElementById("msg").innerText = "❌ " + error.message;
+      }
+    });
+
+    // Load landlord properties
+    async function loadProperties(landlordId) {
+      const list = document.getElementById("propertyList");
+      list.innerHTML = "";
+      const snapshot = await db.collection("properties").where("landlordId", "==", landlordId).get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <strong>${data.propertyName}</strong> <br>
+          Location: ${data.location} <br>
+          Rent: GHS ${data.rent}/month <br>
+          Rooms: ${data.rooms} <br>
+          Amenities: ${data.amenities} <br>
+          <img src="${data.imageUrl}" width="200"> <br><br>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    // Logout function
+    function logout() {
+      auth.signOut().then(() => {
+        window.location.href = "login.html";
+      });
+    }
+  </script>
+</body>
+</html>
