@@ -66,8 +66,10 @@
       padding: 6px 12px;
       border-radius: 6px;
     }
-    .property-list {
-      margin-top: 20px;
+    #map {
+      height: 300px;
+      margin-top: 15px;
+      border-radius: 8px;
     }
     .property-card {
       background: #f9f9f9;
@@ -94,17 +96,20 @@
       <label>Property Title</label>
       <input type="text" id="title" required>
 
-      <label>Location</label>
-      <input type="text" id="location" required>
+      <label>Location Name</label>
+      <input type="text" id="location" placeholder="E.g. Kumasi, Kejetia" required>
 
       <label>Monthly Rent (GHS)</label>
       <input type="number" id="price" required>
+
+      <label>Pin Property Location on Map</label>
+      <div id="map"></div>
 
       <button type="submit">Add Property</button>
     </form>
 
     <h2>Your Listings</h2>
-    <div class="property-list" id="propertyList"></div>
+    <div id="propertyList"></div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
@@ -121,6 +126,29 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    let selectedLatLng = null;
+    let map, marker;
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 6.6924, lng: -1.6230 }, // Default to Kumasi
+        zoom: 12,
+      });
+
+      map.addListener("click", (e) => {
+        placeMarker(e.latLng);
+      });
+    }
+
+    function placeMarker(latLng) {
+      if (marker) marker.setMap(null);
+      marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+      });
+      selectedLatLng = latLng.toJSON();
+    }
+
     const propertyForm = document.getElementById("propertyForm");
     const propertyList = document.getElementById("propertyList");
 
@@ -130,6 +158,11 @@
       const title = document.getElementById("title").value;
       const location = document.getElementById("location").value;
       const price = document.getElementById("price").value;
+
+      if (!selectedLatLng) {
+        alert("Please pin the property on the map.");
+        return;
+      }
 
       const user = auth.currentUser;
       if (!user) {
@@ -142,10 +175,15 @@
         location,
         price,
         ownerId: user.uid,
+        lat: selectedLatLng.lat,
+        lng: selectedLatLng.lng,
         createdAt: new Date()
       });
 
       propertyForm.reset();
+      propertyList.innerHTML = "";
+      marker.setMap(null);
+      selectedLatLng = null;
       loadProperties();
     });
 
@@ -166,6 +204,7 @@
           <h3>${p.title}</h3>
           <p><strong>Location:</strong> ${p.location}</p>
           <p><strong>Price:</strong> GHS ${p.price}/month</p>
+          <p><strong>Coordinates:</strong> ${p.lat}, ${p.lng}</p>
         `;
         propertyList.appendChild(div);
       });
@@ -181,5 +220,7 @@
       });
     }
   </script>
+  <!-- Google Maps API -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
 </body>
 </html>
