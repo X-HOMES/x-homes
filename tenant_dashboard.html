@@ -7,12 +7,12 @@
   <style>
     body {
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #f4f6fb;
       margin: 0;
       padding: 0;
+      background: #f4f6fb;
     }
     header {
-      background: navy;
+      background: darkred;
       color: white;
       padding: 15px;
       text-align: center;
@@ -20,208 +20,268 @@
       font-weight: bold;
     }
     .container {
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 20px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      padding: 10px;
     }
-    .property-card {
-      background: #f9f9f9;
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 15px;
+    .search-bar {
+      text-align: center;
+      margin-bottom: 20px;
     }
-    .property-card h3 {
-      margin: 0 0 10px;
-      color: darkred;
+    .search-bar input {
+      padding: 10px;
+      width: 60%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
     }
-    .actions button {
-      padding: 8px 14px;
-      margin: 5px;
+    .search-bar button {
+      padding: 10px 16px;
+      background: navy;
+      color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      color: white;
-      background: navy;
     }
-    .actions button:hover {
+    .search-bar button:hover {
+      background: darkred;
+    }
+    .properties {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .property-card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .property-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .property-card button {
+      background: navy;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px 5px 0 0;
+    }
+    .property-card button:hover {
       background: darkred;
     }
     #map {
+      width: 100%;
       height: 400px;
-      margin-top: 20px;
-      border-radius: 10px;
+      border-radius: 12px;
+      margin: 20px 0;
     }
-    .calculation-box {
-      background: #f9f9f9;
-      padding: 15px;
-      margin-top: 15px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-    }
-    .payment-box {
-      margin-top: 15px;
-    }
-    .modal {
+    /* Agreement Modal */
+    #agreementModal {
       display: none;
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
       background: white;
       padding: 20px;
       border-radius: 12px;
-      text-align: center;
-      width: 400px;
+      width: 70%;
+      max-width: 800px;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    #agreementModal h2 {
+      margin-top: 0;
+    }
+    #agreementContent {
+      margin: 15px 0;
+      line-height: 1.5;
+    }
+    #agreementModal button {
+      margin: 5px;
     }
   </style>
 </head>
 <body>
   <header>Tenant Dashboard</header>
   <div class="container">
-    <h2>Available Properties</h2>
-    <div id="propertyList"></div>
-    <div id="map"></div>
-  </div>
-
-  <!-- Payment Modal -->
-  <div class="modal" id="paymentModal">
-    <div class="modal-content">
-      <h3>Payment Successful ✅</h3>
-      <p>Your receipt has been generated.</p>
-      <button onclick="closeModal()">Close</button>
+    <!-- Search -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by location (e.g., Kumasi, Accra)">
+      <button onclick="searchProperties()">Search</button>
     </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Property Listings -->
+    <div class="properties" id="propertiesList"></div>
   </div>
 
+  <!-- Agreement Modal -->
+  <div id="agreementModal">
+    <h2>Tenancy Agreement</h2>
+    <div id="agreementContent"></div>
+    <button onclick="approveAgreement()">✅ Approve</button>
+    <button onclick="rejectAgreement()">❌ Reject</button>
+    <button onclick="closeAgreementModal()">Close</button>
+  </div>
+
+  <!-- Firebase + Google Maps + jsPDF -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+
   <script>
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
       projectId: "YOUR_PROJECT_ID",
     };
-
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let map, marker;
+    let map, markers = [];
+    let selectedPropertyId = null;
+    let selectedAgreementData = null;
+
+    // Initialize Google Map
     function initMap() {
       map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 6.6924, lng: -1.6230 },
-        zoom: 12,
+        center: { lat: 7.9465, lng: -1.0232 }, // Ghana center
+        zoom: 7,
       });
     }
+    window.onload = initMap;
 
-    function showOnMap(lat, lng) {
-      if (marker) marker.setMap(null);
-      const pos = { lat, lng };
-      marker = new google.maps.Marker({ position: pos, map: map });
-      map.setCenter(pos);
-      map.setZoom(15);
-    }
-
+    // Load properties from Firestore
     async function loadProperties() {
       const snapshot = await db.collection("properties").get();
-      const propertyList = document.getElementById("propertyList");
-      propertyList.innerHTML = "";
+      const propertiesList = document.getElementById("propertiesList");
+      propertiesList.innerHTML = "";
+      markers.forEach(m => m.setMap(null));
+      markers = [];
 
       snapshot.forEach(doc => {
-        const p = { id: doc.id, ...doc.data() };
+        const p = doc.data();
         const div = document.createElement("div");
-        div.classList.add("property-card");
-
+        div.className = "property-card";
         div.innerHTML = `
-          <h3>${p.title || "Room for Rent"}</h3>
+          <img src="${p.images ? p.images[0] : 'https://via.placeholder.com/300'}" alt="Property">
+          <h3>${p.title}</h3>
           <p><strong>Location:</strong> ${p.location}</p>
           <p><strong>Price:</strong> GHS ${p.price}/month</p>
-          <label>Years to Rent: 
-            <input type="number" id="years-${p.id}" value="1" min="1" max="5">
-          </label>
-          <div class="calculation-box" id="calc-${p.id}">
-            <p><strong>Total Rent:</strong> - </p>
-            <p><strong>5% Increment (6 months):</strong> - </p>
-            <p><strong>Agent Fee:</strong> GHS 50</p>
-            <p><strong>Advance Payment (50%):</strong> - </p>
-            <p><strong>Full Payment:</strong> - </p>
-          </div>
-          <div class="actions">
-            <button onclick="calculateTenantRent(${p.price}, '${p.id}')">Calculate</button>
-            <button onclick="showOnMap(${p.lat}, ${p.lng})">View on Map</button>
-            <button onclick="makePayment('${p.id}', '${p.ownerId}', ${p.price}, 'advance')">Pay Advance</button>
-            <button onclick="makePayment('${p.id}', '${p.ownerId}', ${p.price}, 'full')">Pay Full</button>
-          </div>
+          <button onclick="viewAgreement('${doc.id}')">View Agreement</button>
+          <button onclick="notifyLandlord('${doc.id}', '${p.ownerId}')">Notify Landlord</button>
+          <button onclick="bookNow('${doc.id}')">Book Now</button>
         `;
-        propertyList.appendChild(div);
+        propertiesList.appendChild(div);
+
+        // Add marker to map
+        if (p.lat && p.lng) {
+          const marker = new google.maps.Marker({
+            position: { lat: p.lat, lng: p.lng },
+            map: map,
+            title: p.title,
+          });
+          markers.push(marker);
+        }
       });
     }
 
-    function calculateTenantRent(monthlyRent, propertyId) {
-      const years = parseInt(document.getElementById(`years-${propertyId}`).value);
-      const months = years * 12;
-      const totalRent = monthlyRent * months;
-      const increment = (monthlyRent * 6) * 0.05;
-      const advance = (totalRent * 0.5) + increment + 50;
-      const full = totalRent + increment + 50;
-
-      document.getElementById(`calc-${propertyId}`).innerHTML = `
-        <p><strong>Total Rent:</strong> GHS ${totalRent.toFixed(2)}</p>
-        <p><strong>5% Increment (6 months):</strong> GHS ${increment.toFixed(2)}</p>
-        <p><strong>Agent Fee:</strong> GHS 50</p>
-        <p><strong>Advance Payment (50%):</strong> GHS ${advance.toFixed(2)}</p>
-        <p><strong>Full Payment:</strong> GHS ${full.toFixed(2)}</p>
-      `;
+    // Search properties by location
+    function searchProperties() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const cards = document.querySelectorAll(".property-card");
+      cards.forEach(card => {
+        const location = card.querySelector("p").innerText.toLowerCase();
+        card.style.display = location.includes(query) ? "block" : "none";
+      });
     }
 
-    function makePayment(propertyId, landlordId, monthlyRent, type) {
-      const years = parseInt(document.getElementById(`years-${propertyId}`).value);
-      const months = years * 12;
-      const totalRent = monthlyRent * months;
-      const increment = (monthlyRent * 6) * 0.05;
-      const advance = (totalRent * 0.5) + increment + 50;
-      const full = totalRent + increment + 50;
-      const amountPaid = type === "advance" ? advance : full;
+    // Agreement functions
+    async function viewAgreement(propertyId) {
+      selectedPropertyId = propertyId;
 
-      // 🔥 Mock Payment Success
-      generateReceipt(landlordId, propertyId, amountPaid, years, type);
-      document.getElementById("paymentModal").style.display = "flex";
+      try {
+        const docSnap = await db.collection("properties").doc(propertyId).get();
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          selectedAgreementData = data;
+
+          document.getElementById("agreementContent").innerHTML = `
+            <p><strong>Rules & Regulations:</strong></p>
+            <p>${data.rules || "Not provided"}</p>
+            <p><strong>Tenancy Agreement Terms:</strong></p>
+            <p>${data.agreement || "Not provided"}</p>
+          `;
+
+          document.getElementById("agreementModal").style.display = "block";
+        } else {
+          alert("No agreement found for this property.");
+        }
+      } catch (error) {
+        alert("Error fetching agreement: " + error.message);
+      }
     }
 
-    function closeModal() {
-      document.getElementById("paymentModal").style.display = "none";
+    function closeAgreementModal() {
+      document.getElementById("agreementModal").style.display = "none";
     }
 
-    function generateReceipt(landlordId, propertyId, amount, years, type) {
+    function rejectAgreement() {
+      alert("You have rejected the agreement.");
+      closeAgreementModal();
+    }
+
+    async function approveAgreement() {
+      if (!selectedAgreementData) return;
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      const moveIn = new Date();
-      const expiry = new Date(moveIn);
-      expiry.setFullYear(expiry.getFullYear() + years);
 
-      doc.text("X-HOMES Payment Receipt", 20, 20);
-      doc.text(`Landlord Code: ${landlordId}`, 20, 40);
-      doc.text(`Property ID: ${propertyId}`, 20, 50);
-      doc.text(`Tenant: (Auto-fetch user)`, 20, 60);
-      doc.text(`Payment Type: ${type.toUpperCase()}`, 20, 70);
-      doc.text(`Amount Paid: GHS ${amount.toFixed(2)}`, 20, 80);
-      doc.text(`Duration: ${years} year(s)`, 20, 90);
-      doc.text(`Move-in Date: ${moveIn.toDateString()}`, 20, 100);
-      doc.text(`Expiry Date: ${expiry.toDateString()}`, 20, 110);
-      doc.text("Thank you for using X-HOMES", 20, 130);
+      doc.setFontSize(14);
+      doc.text("X-HOMES Official Tenancy Agreement", 10, 20);
 
-      doc.save("X-HOMES_Receipt.pdf");
+      doc.setFontSize(12);
+      doc.text(`Tenant Name: ${auth.currentUser.displayName || auth.currentUser.email}`, 10, 40);
+      doc.text(`Landlord Code: ${selectedAgreementData.ownerCode || "N/A"}`, 10, 50);
+      doc.text(`Property: ${selectedAgreementData.title || "N/A"}`, 10, 60);
+      doc.text(`Location: ${selectedAgreementData.location || "N/A"}`, 10, 70);
+      doc.text(`Rent: GHS ${selectedAgreementData.price}/month`, 10, 80);
+
+      doc.text("Rules & Regulations:", 10, 100);
+      doc.text(selectedAgreementData.rules || "Not provided", 10, 110, { maxWidth: 180 });
+
+      doc.text("Tenancy Terms:", 10, 140);
+      doc.text(selectedAgreementData.agreement || "Not provided", 10, 150, { maxWidth: 180 });
+
+      doc.text("Agreement Status: APPROVED ✅", 10, 200);
+
+      doc.save("Tenancy_Agreement.pdf");
+
+      alert("Agreement approved and PDF generated.");
+      closeAgreementModal();
     }
 
+    // Placeholder functions
+    function notifyLandlord(propertyId, ownerId) {
+      alert("Notify Landlord feature coming soon!");
+    }
+    function bookNow(propertyId) {
+      alert("Book Now feature coming soon!");
+    }
+
+    // Load properties after login
     auth.onAuthStateChanged(user => {
       if (user) {
         loadProperties();
@@ -230,6 +290,5 @@
       }
     });
   </script>
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
 </body>
 </html>
