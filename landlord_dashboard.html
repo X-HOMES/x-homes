@@ -8,6 +8,12 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
+  <!-- Google Maps API (replace YOUR_API_KEY with your key) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+  <style>
+    #map { width: 100%; height: 300px; margin: 10px 0; }
+    img { border-radius: 8px; margin-top: 5px; }
+  </style>
 </head>
 <body>
   <h2>Landlord Dashboard</h2>
@@ -21,6 +27,13 @@
     <input type="number" id="rooms" placeholder="Number of Rooms Available" required><br><br>
     <textarea id="amenities" placeholder="Amenities (e.g. Near school, hospital, market)" required></textarea><br><br>
     <input type="file" id="image" accept="image/*" required><br><br>
+
+    <!-- Google Map -->
+    <label><b>Select Property Location on Map:</b></label>
+    <div id="map"></div>
+    <input type="hidden" id="lat">
+    <input type="hidden" id="lng">
+
     <button type="submit">Add Property</button>
   </form>
 
@@ -44,6 +57,34 @@
     const db = firebase.firestore();
     const storage = firebase.storage();
 
+    let map, marker;
+
+    // Initialize Google Map
+    function initMap() {
+      const defaultLocation = { lat: 7.9465, lng: -1.0232 }; // Ghana center
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 7,
+        center: defaultLocation
+      });
+
+      // Click to set marker
+      map.addListener("click", (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+
+        if (marker) marker.setMap(null); // remove old marker
+        marker = new google.maps.Marker({
+          position: { lat, lng },
+          map: map
+        });
+
+        document.getElementById("lat").value = lat;
+        document.getElementById("lng").value = lng;
+      });
+    }
+
+    window.onload = initMap;
+
     // Check if landlord is logged in
     auth.onAuthStateChanged(async (user) => {
       if (!user) {
@@ -64,7 +105,14 @@
       const rent = document.getElementById("rent").value;
       const rooms = document.getElementById("rooms").value;
       const amenities = document.getElementById("amenities").value;
+      const lat = document.getElementById("lat").value;
+      const lng = document.getElementById("lng").value;
       const imageFile = document.getElementById("image").files[0];
+
+      if (!lat || !lng) {
+        document.getElementById("msg").innerText = "❌ Please select a property location on the map!";
+        return;
+      }
 
       try {
         // Upload image to Firebase Storage
@@ -80,6 +128,8 @@
           rent: parseFloat(rent),
           rooms: parseInt(rooms),
           amenities,
+          lat: parseFloat(lat),
+          lng: parseFloat(lng),
           imageUrl,
           createdAt: new Date()
         });
@@ -87,6 +137,7 @@
         document.getElementById("msg").innerText = "✅ Property added successfully!";
         loadProperties(user.uid);
         document.getElementById("propertyForm").reset();
+        if (marker) marker.setMap(null);
 
       } catch (error) {
         document.getElementById("msg").innerText = "❌ " + error.message;
@@ -107,6 +158,7 @@
           Rent: GHS ${data.rent}/month <br>
           Rooms: ${data.rooms} <br>
           Amenities: ${data.amenities} <br>
+          Coordinates: (${data.lat}, ${data.lng}) <br>
           <img src="${data.imageUrl}" width="200"> <br><br>
         `;
         list.appendChild(li);
