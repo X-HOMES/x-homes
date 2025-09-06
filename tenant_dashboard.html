@@ -238,13 +238,27 @@
       document.getElementById("agreementModal").style.display = "none";
     }
 
-    function rejectAgreement() {
-      alert("You have rejected the agreement.");
-      closeAgreementModal();
+    async function rejectAgreement() {
+      if (!selectedPropertyId || !auth.currentUser) return;
+
+      try {
+        await db.collection("properties").doc(selectedPropertyId).update({
+          [`agreements.${auth.currentUser.uid}`]: {
+            status: "rejected",
+            timestamp: new Date().toISOString(),
+            tenantName: auth.currentUser.displayName || auth.currentUser.email
+          }
+        });
+
+        alert("You have rejected the agreement. Decision stored.");
+        closeAgreementModal();
+      } catch (error) {
+        alert("Error saving rejection: " + error.message);
+      }
     }
 
     async function approveAgreement() {
-      if (!selectedAgreementData) return;
+      if (!selectedAgreementData || !selectedPropertyId || !auth.currentUser) return;
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
@@ -269,8 +283,20 @@
 
       doc.save("Tenancy_Agreement.pdf");
 
-      alert("Agreement approved and PDF generated.");
-      closeAgreementModal();
+      try {
+        await db.collection("properties").doc(selectedPropertyId).update({
+          [`agreements.${auth.currentUser.uid}`]: {
+            status: "approved",
+            timestamp: new Date().toISOString(),
+            tenantName: auth.currentUser.displayName || auth.currentUser.email
+          }
+        });
+
+        alert("Agreement approved ✅ and decision stored.");
+        closeAgreementModal();
+      } catch (error) {
+        alert("Error saving approval: " + error.message);
+      }
     }
 
     // Placeholder functions
