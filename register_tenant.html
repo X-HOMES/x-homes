@@ -22,12 +22,20 @@
   <p id="msg"></p>
 
   <script>
-    // 🔹 Replace with your Firebase config
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-    };
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAouk2Vs5ApZaNT23yITk9tCqZFDLhloHQ",
+  authDomain: "x-homes-2e244.firebaseapp.com",
+  projectId: "x-homes-2e244",
+  storageBucket: "x-homes-2e244.firebasestorage.app",
+  messagingSenderId: "807749759634",
+  appId: "1:807749759634:web:b01b0707abdea703ceec4b"
+};
 
     // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
