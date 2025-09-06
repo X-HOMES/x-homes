@@ -1,42 +1,235 @@
-...
-<div id="propertyList"></div>
-<div id="map" style="height:400px; margin-top:20px; border-radius:10px;"></div>
-...
-<script>
-  let map, marker;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>X-HOMES | Tenant Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6fb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: navy;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .property-card {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .property-card h3 {
+      margin: 0 0 10px;
+      color: darkred;
+    }
+    .actions button {
+      padding: 8px 14px;
+      margin: 5px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      background: navy;
+    }
+    .actions button:hover {
+      background: darkred;
+    }
+    #map {
+      height: 400px;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+    .calculation-box {
+      background: #f9f9f9;
+      padding: 15px;
+      margin-top: 15px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+    }
+    .payment-box {
+      margin-top: 15px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <header>Tenant Dashboard</header>
+  <div class="container">
+    <h2>Available Properties</h2>
+    <div id="propertyList"></div>
+    <div id="map"></div>
+  </div>
 
-  function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 6.6924, lng: -1.6230 }, // Default Kumasi
-      zoom: 12,
-    });
-  }
+  <!-- Payment Modal -->
+  <div class="modal" id="paymentModal">
+    <div class="modal-content">
+      <h3>Payment Successful ✅</h3>
+      <p>Your receipt has been generated.</p>
+      <button onclick="closeModal()">Close</button>
+    </div>
+  </div>
 
-  function showOnMap(lat, lng) {
-    if (marker) marker.setMap(null);
-    const pos = { lat, lng };
-    marker = new google.maps.Marker({ position: pos, map: map });
-    map.setCenter(pos);
-    map.setZoom(15);
-  }
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
 
-  function displayProperties(properties) {
-    propertyList.innerHTML = "";
-    properties.forEach(p => {
-      const div = document.createElement("div");
-      div.classList.add("property-card");
-      div.innerHTML = `
-        <h3>${p.title || "Room for Rent"}</h3>
-        <p><strong>Location:</strong> ${p.location}</p>
-        <p><strong>Price:</strong> GHS ${p.price}/month</p>
-        <div class="actions">
-          <button class="notify-btn" onclick="notifyLandlord('${p.ownerId}')">Notify Landlord</button>
-          <button class="book-btn" onclick="bookNow('${p.id}')">Book Now</button>
-          <button onclick="showOnMap(${p.lat}, ${p.lng})">View on Map</button>
-        </div>
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let map, marker;
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 6.6924, lng: -1.6230 },
+        zoom: 12,
+      });
+    }
+
+    function showOnMap(lat, lng) {
+      if (marker) marker.setMap(null);
+      const pos = { lat, lng };
+      marker = new google.maps.Marker({ position: pos, map: map });
+      map.setCenter(pos);
+      map.setZoom(15);
+    }
+
+    async function loadProperties() {
+      const snapshot = await db.collection("properties").get();
+      const propertyList = document.getElementById("propertyList");
+      propertyList.innerHTML = "";
+
+      snapshot.forEach(doc => {
+        const p = { id: doc.id, ...doc.data() };
+        const div = document.createElement("div");
+        div.classList.add("property-card");
+
+        div.innerHTML = `
+          <h3>${p.title || "Room for Rent"}</h3>
+          <p><strong>Location:</strong> ${p.location}</p>
+          <p><strong>Price:</strong> GHS ${p.price}/month</p>
+          <label>Years to Rent: 
+            <input type="number" id="years-${p.id}" value="1" min="1" max="5">
+          </label>
+          <div class="calculation-box" id="calc-${p.id}">
+            <p><strong>Total Rent:</strong> - </p>
+            <p><strong>5% Increment (6 months):</strong> - </p>
+            <p><strong>Agent Fee:</strong> GHS 50</p>
+            <p><strong>Advance Payment (50%):</strong> - </p>
+            <p><strong>Full Payment:</strong> - </p>
+          </div>
+          <div class="actions">
+            <button onclick="calculateTenantRent(${p.price}, '${p.id}')">Calculate</button>
+            <button onclick="showOnMap(${p.lat}, ${p.lng})">View on Map</button>
+            <button onclick="makePayment('${p.id}', '${p.ownerId}', ${p.price}, 'advance')">Pay Advance</button>
+            <button onclick="makePayment('${p.id}', '${p.ownerId}', ${p.price}, 'full')">Pay Full</button>
+          </div>
+        `;
+        propertyList.appendChild(div);
+      });
+    }
+
+    function calculateTenantRent(monthlyRent, propertyId) {
+      const years = parseInt(document.getElementById(`years-${propertyId}`).value);
+      const months = years * 12;
+      const totalRent = monthlyRent * months;
+      const increment = (monthlyRent * 6) * 0.05;
+      const advance = (totalRent * 0.5) + increment + 50;
+      const full = totalRent + increment + 50;
+
+      document.getElementById(`calc-${propertyId}`).innerHTML = `
+        <p><strong>Total Rent:</strong> GHS ${totalRent.toFixed(2)}</p>
+        <p><strong>5% Increment (6 months):</strong> GHS ${increment.toFixed(2)}</p>
+        <p><strong>Agent Fee:</strong> GHS 50</p>
+        <p><strong>Advance Payment (50%):</strong> GHS ${advance.toFixed(2)}</p>
+        <p><strong>Full Payment:</strong> GHS ${full.toFixed(2)}</p>
       `;
-      propertyList.appendChild(div);
+    }
+
+    function makePayment(propertyId, landlordId, monthlyRent, type) {
+      const years = parseInt(document.getElementById(`years-${propertyId}`).value);
+      const months = years * 12;
+      const totalRent = monthlyRent * months;
+      const increment = (monthlyRent * 6) * 0.05;
+      const advance = (totalRent * 0.5) + increment + 50;
+      const full = totalRent + increment + 50;
+      const amountPaid = type === "advance" ? advance : full;
+
+      // 🔥 Mock Payment Success
+      generateReceipt(landlordId, propertyId, amountPaid, years, type);
+      document.getElementById("paymentModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("paymentModal").style.display = "none";
+    }
+
+    function generateReceipt(landlordId, propertyId, amount, years, type) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const moveIn = new Date();
+      const expiry = new Date(moveIn);
+      expiry.setFullYear(expiry.getFullYear() + years);
+
+      doc.text("X-HOMES Payment Receipt", 20, 20);
+      doc.text(`Landlord Code: ${landlordId}`, 20, 40);
+      doc.text(`Property ID: ${propertyId}`, 20, 50);
+      doc.text(`Tenant: (Auto-fetch user)`, 20, 60);
+      doc.text(`Payment Type: ${type.toUpperCase()}`, 20, 70);
+      doc.text(`Amount Paid: GHS ${amount.toFixed(2)}`, 20, 80);
+      doc.text(`Duration: ${years} year(s)`, 20, 90);
+      doc.text(`Move-in Date: ${moveIn.toDateString()}`, 20, 100);
+      doc.text(`Expiry Date: ${expiry.toDateString()}`, 20, 110);
+      doc.text("Thank you for using X-HOMES", 20, 130);
+
+      doc.save("X-HOMES_Receipt.pdf");
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        loadProperties();
+      } else {
+        window.location.href = "login.html";
+      }
     });
-  }
-</script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
+  </script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
+</body>
+</html>
