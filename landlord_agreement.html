@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>X-HOMES | Landlord Agreement</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6fb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: darkred;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      resize: vertical;
+    }
+    button {
+      background: navy;
+      color: white;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: darkred;
+    }
+    .success {
+      background: #e6ffe6;
+      border: 1px solid green;
+      padding: 10px;
+      margin-top: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>Landlord Agreement Setup</header>
+  <div class="container">
+    <h2>Attach Tenancy Agreement</h2>
+    <p><strong>Property ID:</strong> <span id="propertyId"></span></p>
+
+    <label><strong>Rules & Regulations:</strong></label>
+    <textarea id="rules" placeholder="Enter house rules (e.g., no pets, no late-night noise)..."></textarea>
+
+    <label><strong>Tenancy Agreement Terms:</strong></label>
+    <textarea id="agreement" placeholder="Write official tenancy agreement terms here..."></textarea>
+
+    <button onclick="saveAgreement()">Save Agreement</button>
+
+    <div class="success" id="successMsg">✅ Agreement saved successfully!</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Get propertyId from query string
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get("id");
+    document.getElementById("propertyId").textContent = propertyId;
+
+    async function saveAgreement() {
+      const rules = document.getElementById("rules").value;
+      const agreement = document.getElementById("agreement").value;
+
+      if (!rules || !agreement) {
+        alert("Please fill out both fields before saving.");
+        return;
+      }
+
+      try {
+        await db.collection("properties").doc(propertyId).update({
+          rules: rules,
+          agreement: agreement,
+        });
+
+        document.getElementById("successMsg").style.display = "block";
+        setTimeout(() => {
+          document.getElementById("successMsg").style.display = "none";
+        }, 3000);
+      } catch (error) {
+        alert("Error saving agreement: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
