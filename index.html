@@ -4,20 +4,63 @@
   <meta charset="UTF-8">
   <title>X-HOMES | Home</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 80px; }
-    h1 { color: darkblue; }
-    .btn {
-      display: inline-block; margin: 20px; padding: 20px 40px;
-      background: navy; color: white; border-radius: 8px; text-decoration: none;
-      font-size: 20px;
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f9;
     }
-    .btn:hover { background: darkred; }
+    header {
+      background: navy;
+      color: white;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0;
+    }
+    main {
+      margin-top: 60px;
+    }
+    .btn {
+      display: inline-block;
+      margin: 20px;
+      padding: 20px 40px;
+      background: navy;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 20px;
+      transition: background 0.3s;
+    }
+    .btn:hover {
+      background: darkred;
+    }
+    footer {
+      margin-top: 60px;
+      padding: 15px;
+      background: #eee;
+    }
+    footer a {
+      color: navy;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-  <h1>Welcome to X-HOMES</h1>
-  <p>Please select your role to continue:</p>
-  <a href="register_landlord.html" class="btn">I am a Landlord</a>
-  <a href="register_tenant.html" class="btn">I am a Tenant</a>
+  <header>
+    <h1>Welcome to X-HOMES</h1>
+    <p>Your trusted housing platform</p>
+  </header>
+
+  <main>
+    <p><b>Select your role to continue:</b></p>
+    <a href="register_landlord.html" class="btn">I am a Landlord</a>
+    <a href="register_tenant.html" class="btn">I am a Tenant</a>
+  </main>
+
+  <footer>
+    <p>Already have an account? <a href="login.html">Login here</a></p>
+  </footer>
 </body>
 </html>
