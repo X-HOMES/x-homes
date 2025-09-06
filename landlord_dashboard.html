@@ -12,7 +12,7 @@
       padding: 0;
     }
     header {
-      background: darkred;
+      background: navy;
       color: white;
       padding: 15px;
       text-align: center;
@@ -20,7 +20,7 @@
       font-weight: bold;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 20px auto;
       padding: 20px;
       background: white;
@@ -30,135 +30,212 @@
     h2 {
       color: darkred;
     }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: 600;
-      color: #333;
-    }
-    input {
+    input, textarea, select {
       width: 100%;
       padding: 10px;
-      margin-top: 6px;
+      margin: 8px 0;
       border: 1px solid #ccc;
       border-radius: 8px;
-      font-size: 14px;
+    }
+    label {
+      font-weight: bold;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 10px 0;
+    }
+    .checkbox-group label {
+      font-weight: normal;
     }
     button {
-      padding: 10px 16px;
       background: navy;
       color: white;
+      padding: 10px 18px;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      margin-top: 15px;
+      font-size: 15px;
+      margin-top: 10px;
     }
     button:hover {
       background: darkred;
     }
-    .logout {
-      text-align: right;
-      margin-top: 10px;
-    }
-    .logout button {
-      background: crimson;
-      color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-    }
-    #map {
-      height: 300px;
-      margin-top: 15px;
-      border-radius: 8px;
-    }
-    .calculation-box {
+    .property-card {
       background: #f9f9f9;
-      padding: 15px;
-      margin-top: 15px;
       border: 1px solid #ddd;
+      padding: 15px;
       border-radius: 10px;
+      margin-bottom: 15px;
     }
-    .calculation-box p {
-      margin: 6px 0;
-      font-weight: 500;
+    .property-card img {
+      max-width: 150px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-right: 8px;
+    }
+    .actions {
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
   <header>Landlord Dashboard</header>
   <div class="container">
-    <div class="logout">
-      <button onclick="logout()">Logout</button>
-    </div>
-
-    <h2>Upload a Property</h2>
+    <h2>Upload New Property</h2>
     <form id="propertyForm">
-      <label>Property Title</label>
+      <label>Property Title:</label>
       <input type="text" id="title" required>
 
-      <label>Location Name</label>
-      <input type="text" id="location" placeholder="E.g. Kumasi, Kejetia" required>
+      <label>Location:</label>
+      <input type="text" id="location" required>
 
-      <label>Monthly Rent (GHS)</label>
-      <input type="number" id="price" required oninput="calculateRent()">
+      <label>Monthly Rent (GHS):</label>
+      <input type="number" id="price" required>
 
-      <label>Pin Property Location on Map</label>
-      <div id="map"></div>
-
-      <div class="calculation-box" id="rentCalculation">
-        <p><strong>Yearly Rent:</strong> GHS 0</p>
-        <p><strong>Tenant Advance Payment:</strong> GHS 0</p>
-        <p><strong>Your Net (after deductions):</strong> GHS 0</p>
-        <p><strong>Developer’s Cut:</strong> GHS 0</p>
+      <label>Proximities:</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" value="School"> School</label>
+        <label><input type="checkbox" value="Hospital"> Hospital</label>
+        <label><input type="checkbox" value="Market"> Market</label>
+        <label><input type="checkbox" value="Water"> Water</label>
+        <label><input type="checkbox" value="Light"> Light</label>
       </div>
 
-      <button type="submit">Add Property</button>
+      <label>Upload Property Images (Max 3):</label>
+      <input type="file" id="images" accept="image/*" multiple required>
+
+      <button type="submit">Save Property</button>
     </form>
+
+    <hr>
+    <h2>Your Properties</h2>
+    <div id="propertyList"></div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
       projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com"
     };
-
     const app = firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
+    const storage = firebase.storage();
 
-    let selectedLatLng = null;
-    let map, marker;
+    const propertyForm = document.getElementById("propertyForm");
+    const propertyList = document.getElementById("propertyList");
 
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 6.6924, lng: -1.6230 }, // Default to Kumasi
-        zoom: 12,
-      });
+    propertyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("title").value;
+      const location = document.getElementById("location").value;
+      const price = parseFloat(document.getElementById("price").value);
+      const proximities = Array.from(document.querySelectorAll(".checkbox-group input:checked")).map(cb => cb.value);
+      const images = document.getElementById("images").files;
 
-      map.addListener("click", (e) => {
-        placeMarker(e.latLng);
+      if (images.length > 3) {
+        alert("You can upload a maximum of 3 images.");
+        return;
+      }
+
+      try {
+        const user = auth.currentUser;
+        if (!user) return alert("You must be logged in.");
+
+        let imageUrls = [];
+        for (let i = 0; i < images.length; i++) {
+          const imgRef = storage.ref(`properties/${user.uid}/${Date.now()}_${images[i].name}`);
+          await imgRef.put(images[i]);
+          const url = await imgRef.getDownloadURL();
+          imageUrls.push(url);
+        }
+
+        await db.collection("properties").add({
+          ownerId: user.uid,
+          title,
+          location,
+          price,
+          proximities,
+          images: imageUrls,
+          createdAt: new Date()
+        });
+
+        alert("Property saved successfully!");
+        propertyForm.reset();
+        loadProperties();
+      } catch (error) {
+        alert("Error saving property: " + error.message);
+      }
+    });
+
+    async function loadProperties() {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const snapshot = await db.collection("properties").where("ownerId", "==", user.uid).get();
+      propertyList.innerHTML = "";
+
+      snapshot.forEach(doc => {
+        const p = { id: doc.id, ...doc.data() };
+        const div = document.createElement("div");
+        div.classList.add("property-card");
+
+        let imagesHTML = "";
+        if (p.images) {
+          p.images.forEach(img => {
+            imagesHTML += `<img src="${img}" alt="Property Photo">`;
+          });
+        }
+
+        div.innerHTML = `
+          <h3>${p.title}</h3>
+          <p><strong>Location:</strong> ${p.location}</p>
+          <p><strong>Price:</strong> GHS ${p.price}/month</p>
+          <p><strong>Proximities:</strong> ${p.proximities ? p.proximities.join(", ") : "None"}</p>
+          <div>${imagesHTML}</div>
+          <div class="actions">
+            <button onclick="showOnMap('${p.location}')">View on Map</button>
+            <a href="landlord_agreement.html?id=${p.id}"><button>Add Agreement</button></a>
+            <button onclick="previewAgreement('${p.id}')">Preview Agreement</button>
+          </div>
+        `;
+        propertyList.appendChild(div);
       });
     }
 
-    function placeMarker(latLng) {
-      if (marker) marker.setMap(null);
-      marker = new google.maps.Marker({
-        position: latLng,
-        map: map,
-      });
-      selectedLatLng = latLng.toJSON();
+    function showOnMap(location) {
+      alert("Google Maps integration will show location: " + location);
     }
 
-    // 🔥 Rent Calculation Logic
-    function calculateRent() {
-      const monthlyRent = parseFloat(document.getElementById("price").value);
-      if (!monthlyRent || monthlyRent <= 0) return;
+    async function previewAgreement(propertyId) {
+      const docSnap = await db.collection("properties").doc(propertyId).get();
+      if (docSnap.exists) {
+        const data = docSnap.data();
+        if (data.rules && data.agreement) {
+          alert(`📜 Rules: ${data.rules}\n\n📄 Agreement: ${data.agreement}`);
+        } else {
+          alert("No agreement set yet for this property.");
+        }
+      }
+    }
 
-      const yearlyRent = monthlyRent * 12;
-      const increment = (monthlyRent * 6) * 0.05; // developer fee
-      const advancePayment = (yearlyRent * 0.5) + increment;
-      const tenantTotal = advancePayment + 50; // tenant adds 50 agent fee
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        loadProperties();
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+</body>
+</html>
