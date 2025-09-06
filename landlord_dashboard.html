@@ -2,239 +2,203 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>X-HOMES | Landlord Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>X-Homes | Landlord Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js"></script>
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #f4f6fb;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: navy;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    .container {
-      max-width: 1000px;
-      margin: 20px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    h2 {
-      color: darkred;
-    }
-    input, textarea, select {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    label {
-      font-weight: bold;
-    }
-    .checkbox-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      margin: 10px 0;
-    }
-    .checkbox-group label {
-      font-weight: normal;
-    }
-    button {
-      background: navy;
-      color: white;
-      padding: 10px 18px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 15px;
-      margin-top: 10px;
-    }
-    button:hover {
-      background: darkred;
-    }
-    .property-card {
-      background: #f9f9f9;
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-    .property-card img {
-      max-width: 150px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 6px;
-      margin-right: 8px;
-    }
-    .actions {
-      margin-top: 10px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    h1, h2 { color: #333; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .badge { background: red; color: #fff; border-radius: 50%; padding: 5px 10px; margin-left: 8px; }
+    .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .actions button { margin-right: 10px; }
+    .property-form { margin-top: 30px; }
+    .checkboxes label { margin-right: 15px; }
+    .notification { border-bottom: 1px solid #ddd; padding: 10px 0; }
+    .notification:last-child { border-bottom: none; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: #fff; padding: 20px; margin: 10% auto; width: 400px; border-radius: 10px; }
   </style>
 </head>
 <body>
-  <header>Landlord Dashboard</header>
-  <div class="container">
-    <h2>Upload New Property</h2>
+  <div class="header">
+    <h1>Landlord Dashboard</h1>
+    <div>
+      🔔 Notifications <span id="notifCount" class="badge">0</span>
+    </div>
+  </div>
+
+  <!-- Notifications Panel -->
+  <div class="card">
+    <h2>Tenant Notifications</h2>
+    <div id="notifications"></div>
+  </div>
+
+  <!-- Respond Modal -->
+  <div id="respondModal" class="modal">
+    <div class="modal-content">
+      <h3>Respond to Tenant</h3>
+      <textarea id="responseMessage" rows="4" style="width:100%;"></textarea>
+      <br><br>
+      <button onclick="sendResponse('platform')">Send (Platform)</button>
+      <button onclick="sendResponse('email')">Send (Email)</button>
+      <button onclick="sendResponse('sms')">Send (SMS)</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Property Upload Section -->
+  <div class="card property-form">
+    <h2>Upload Property</h2>
     <form id="propertyForm">
-      <label>Property Title:</label>
-      <input type="text" id="title" required>
+      <input type="text" id="title" placeholder="Property Title" required><br><br>
+      <input type="text" id="location" placeholder="Location" required><br><br>
+      <input type="number" id="price" placeholder="Rent per month (GHS)" required><br><br>
 
-      <label>Location:</label>
-      <input type="text" id="location" required>
-
-      <label>Monthly Rent (GHS):</label>
-      <input type="number" id="price" required>
-
-      <label>Proximities:</label>
-      <div class="checkbox-group">
+      <div class="checkboxes">
         <label><input type="checkbox" value="School"> School</label>
         <label><input type="checkbox" value="Hospital"> Hospital</label>
         <label><input type="checkbox" value="Market"> Market</label>
         <label><input type="checkbox" value="Water"> Water</label>
-        <label><input type="checkbox" value="Light"> Light</label>
-      </div>
+        <label><input type="checkbox" value="Electricity"> Electricity</label>
+      </div><br>
 
-      <label>Upload Property Images (Max 3):</label>
-      <input type="file" id="images" accept="image/*" multiple required>
+      <label>Upload up to 3 Images:</label><br>
+      <input type="file" id="images" accept="image/*" multiple><br><br>
 
-      <button type="submit">Save Property</button>
+      <textarea id="agreement" placeholder="Enter rental agreement..." rows="5"></textarea><br><br>
+
+      <button type="submit">Add Property</button>
     </form>
-
-    <hr>
-    <h2>Your Properties</h2>
-    <div id="propertyList"></div>
   </div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, where, getDocs, onSnapshot, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      authDomain: "YOUR_AUTH_DOMAIN",
       projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com"
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const storage = firebase.storage();
 
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    let currentLandlordId = null;
+    let selectedNotificationId = null;
+
+    // Auth check
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        currentLandlordId = user.uid;
+        loadNotifications();
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+
+    // Load notifications
+    function loadNotifications() {
+      const q = query(collection(db, "notifications"), where("landlordId", "==", currentLandlordId));
+      onSnapshot(q, snapshot => {
+        let notifHTML = "";
+        let unread = 0;
+        snapshot.forEach(docSnap => {
+          const n = docSnap.data();
+          if (n.status === "pending") unread++;
+          notifHTML += `
+            <div class="notification">
+              <p><strong>${n.tenantName}</strong> (${n.tenantEmail}, ${n.tenantPhone})</p>
+              <p>Interested in: ${n.propertyTitle}</p>
+              <p>Status: ${n.status}</p>
+              <button onclick="markViewed('${docSnap.id}')">Mark Viewed</button>
+              <button onclick="openModal('${docSnap.id}')">Respond</button>
+            </div>
+          `;
+        });
+        document.getElementById("notifications").innerHTML = notifHTML || "<p>No notifications yet</p>";
+        document.getElementById("notifCount").textContent = unread;
+      });
+    }
+
+    // Mark as viewed
+    window.markViewed = async (id) => {
+      const notifRef = doc(db, "notifications", id);
+      await updateDoc(notifRef, { status: "viewed" });
+    };
+
+    // Respond modal
+    window.openModal = (id) => {
+      selectedNotificationId = id;
+      document.getElementById("respondModal").style.display = "block";
+    };
+    window.closeModal = () => {
+      document.getElementById("respondModal").style.display = "none";
+    };
+
+    // Send response
+    window.sendResponse = async (mode) => {
+      if (!selectedNotificationId) return;
+      const message = document.getElementById("responseMessage").value;
+      if (!message) return alert("Message cannot be empty");
+
+      const notifRef = doc(db, "notifications", selectedNotificationId);
+      const responsesRef = collection(notifRef, "responses");
+      await addDoc(responsesRef, {
+        message,
+        mode,
+        timestamp: serverTimestamp()
+      });
+      await updateDoc(notifRef, { status: "responded" });
+
+      alert(`Response sent via ${mode}`);
+      closeModal();
+    };
+
+    // Property upload
     const propertyForm = document.getElementById("propertyForm");
-    const propertyList = document.getElementById("propertyList");
-
     propertyForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const title = document.getElementById("title").value;
       const location = document.getElementById("location").value;
-      const price = parseFloat(document.getElementById("price").value);
-      const proximities = Array.from(document.querySelectorAll(".checkbox-group input:checked")).map(cb => cb.value);
-      const images = document.getElementById("images").files;
+      const price = document.getElementById("price").value;
+      const proximities = [...document.querySelectorAll(".checkboxes input:checked")].map(cb => cb.value);
+      const agreement = document.getElementById("agreement").value;
 
-      if (images.length > 3) {
-        alert("You can upload a maximum of 3 images.");
-        return;
+      // Upload images
+      const files = document.getElementById("images").files;
+      let imageUrls = [];
+      for (let i = 0; i < Math.min(files.length, 3); i++) {
+        const storageRef = ref(storage, `properties/${currentLandlordId}/${Date.now()}_${files[i].name}`);
+        await uploadBytes(storageRef, files[i]);
+        const url = await getDownloadURL(storageRef);
+        imageUrls.push(url);
       }
 
-      try {
-        const user = auth.currentUser;
-        if (!user) return alert("You must be logged in.");
-
-        let imageUrls = [];
-        for (let i = 0; i < images.length; i++) {
-          const imgRef = storage.ref(`properties/${user.uid}/${Date.now()}_${images[i].name}`);
-          await imgRef.put(images[i]);
-          const url = await imgRef.getDownloadURL();
-          imageUrls.push(url);
-        }
-
-        await db.collection("properties").add({
-          ownerId: user.uid,
-          title,
-          location,
-          price,
-          proximities,
-          images: imageUrls,
-          createdAt: new Date()
-        });
-
-        alert("Property saved successfully!");
-        propertyForm.reset();
-        loadProperties();
-      } catch (error) {
-        alert("Error saving property: " + error.message);
-      }
-    });
-
-    async function loadProperties() {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const snapshot = await db.collection("properties").where("ownerId", "==", user.uid).get();
-      propertyList.innerHTML = "";
-
-      snapshot.forEach(doc => {
-        const p = { id: doc.id, ...doc.data() };
-        const div = document.createElement("div");
-        div.classList.add("property-card");
-
-        let imagesHTML = "";
-        if (p.images) {
-          p.images.forEach(img => {
-            imagesHTML += `<img src="${img}" alt="Property Photo">`;
-          });
-        }
-
-        div.innerHTML = `
-          <h3>${p.title}</h3>
-          <p><strong>Location:</strong> ${p.location}</p>
-          <p><strong>Price:</strong> GHS ${p.price}/month</p>
-          <p><strong>Proximities:</strong> ${p.proximities ? p.proximities.join(", ") : "None"}</p>
-          <div>${imagesHTML}</div>
-          <div class="actions">
-            <button onclick="showOnMap('${p.location}')">View on Map</button>
-            <a href="landlord_agreement.html?id=${p.id}"><button>Add Agreement</button></a>
-            <button onclick="previewAgreement('${p.id}')">Preview Agreement</button>
-          </div>
-        `;
-        propertyList.appendChild(div);
+      await addDoc(collection(db, "properties"), {
+        landlordId: currentLandlordId,
+        title,
+        location,
+        price,
+        proximities,
+        agreement,
+        images: imageUrls,
+        timestamp: serverTimestamp()
       });
-    }
 
-    function showOnMap(location) {
-      alert("Google Maps integration will show location: " + location);
-    }
-
-    async function previewAgreement(propertyId) {
-      const docSnap = await db.collection("properties").doc(propertyId).get();
-      if (docSnap.exists) {
-        const data = docSnap.data();
-        if (data.rules && data.agreement) {
-          alert(`📜 Rules: ${data.rules}\n\n📄 Agreement: ${data.agreement}`);
-        } else {
-          alert("No agreement set yet for this property.");
-        }
-      }
-    }
-
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        loadProperties();
-      } else {
-        window.location.href = "login.html";
-      }
+      alert("Property uploaded successfully!");
+      propertyForm.reset();
     });
   </script>
 </body>
