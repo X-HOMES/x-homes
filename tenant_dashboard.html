@@ -51,12 +51,14 @@
     const db = firebase.firestore();
 
     let allProperties = [];
+    let currentTenant = null;
 
     // Check if tenant is logged in
     auth.onAuthStateChanged(async (user) => {
       if (!user) {
         window.location.href = "login.html";
       } else {
+        currentTenant = user;
         loadProperties();
       }
     });
@@ -95,11 +97,31 @@
           <p><b>Rent:</b> GHS ${p.rent}/month</p>
           <p><b>Rooms:</b> ${p.rooms}</p>
           <p><b>Amenities:</b> ${p.amenities}</p>
-          <button class="btn">Notify Landlord</button>
+          <button class="btn" onclick="notifyLandlord('${p.id}', '${p.landlordId}')">Notify Landlord</button>
           <button class="btn">Book Now</button>
         `;
         resultsDiv.appendChild(card);
       });
+    }
+
+    // 🔹 Notify landlord about interest
+    async function notifyLandlord(propertyId, landlordId) {
+      if (!currentTenant) return alert("You must be logged in.");
+
+      try {
+        await db.collection("notifications").add({
+          propertyId: propertyId,
+          landlordId: landlordId,
+          tenantId: currentTenant.uid,
+          tenantEmail: currentTenant.email || "N/A",
+          timestamp: new Date(),
+          status: "pending"
+        });
+        alert("Notification sent to landlord successfully!");
+      } catch (err) {
+        console.error("Error sending notification:", err);
+        alert("Error: Could not send notification.");
+      }
     }
 
     // Search properties by location
