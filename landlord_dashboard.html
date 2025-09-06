@@ -71,16 +71,16 @@
       margin-top: 15px;
       border-radius: 8px;
     }
-    .property-card {
+    .calculation-box {
       background: #f9f9f9;
-      border: 1px solid #ddd;
       padding: 15px;
-      border-radius: 10px;
       margin-top: 15px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
     }
-    .property-card h3 {
-      margin: 0 0 10px;
-      color: navy;
+    .calculation-box p {
+      margin: 6px 0;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -100,16 +100,20 @@
       <input type="text" id="location" placeholder="E.g. Kumasi, Kejetia" required>
 
       <label>Monthly Rent (GHS)</label>
-      <input type="number" id="price" required>
+      <input type="number" id="price" required oninput="calculateRent()">
 
       <label>Pin Property Location on Map</label>
       <div id="map"></div>
 
+      <div class="calculation-box" id="rentCalculation">
+        <p><strong>Yearly Rent:</strong> GHS 0</p>
+        <p><strong>Tenant Advance Payment:</strong> GHS 0</p>
+        <p><strong>Your Net (after deductions):</strong> GHS 0</p>
+        <p><strong>Developer’s Cut:</strong> GHS 0</p>
+      </div>
+
       <button type="submit">Add Property</button>
     </form>
-
-    <h2>Your Listings</h2>
-    <div id="propertyList"></div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
@@ -149,78 +153,12 @@
       selectedLatLng = latLng.toJSON();
     }
 
-    const propertyForm = document.getElementById("propertyForm");
-    const propertyList = document.getElementById("propertyList");
+    // 🔥 Rent Calculation Logic
+    function calculateRent() {
+      const monthlyRent = parseFloat(document.getElementById("price").value);
+      if (!monthlyRent || monthlyRent <= 0) return;
 
-    propertyForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const title = document.getElementById("title").value;
-      const location = document.getElementById("location").value;
-      const price = document.getElementById("price").value;
-
-      if (!selectedLatLng) {
-        alert("Please pin the property on the map.");
-        return;
-      }
-
-      const user = auth.currentUser;
-      if (!user) {
-        alert("Please login first.");
-        return;
-      }
-
-      await db.collection("properties").add({
-        title,
-        location,
-        price,
-        ownerId: user.uid,
-        lat: selectedLatLng.lat,
-        lng: selectedLatLng.lng,
-        createdAt: new Date()
-      });
-
-      propertyForm.reset();
-      propertyList.innerHTML = "";
-      marker.setMap(null);
-      selectedLatLng = null;
-      loadProperties();
-    });
-
-    async function loadProperties() {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const snapshot = await db.collection("properties")
-        .where("ownerId", "==", user.uid)
-        .get();
-
-      propertyList.innerHTML = "";
-      snapshot.forEach(doc => {
-        const p = doc.data();
-        const div = document.createElement("div");
-        div.classList.add("property-card");
-        div.innerHTML = `
-          <h3>${p.title}</h3>
-          <p><strong>Location:</strong> ${p.location}</p>
-          <p><strong>Price:</strong> GHS ${p.price}/month</p>
-          <p><strong>Coordinates:</strong> ${p.lat}, ${p.lng}</p>
-        `;
-        propertyList.appendChild(div);
-      });
-    }
-
-    auth.onAuthStateChanged(user => {
-      if (user) loadProperties();
-    });
-
-    function logout() {
-      auth.signOut().then(() => {
-        window.location.href = "login.html";
-      });
-    }
-  </script>
-  <!-- Google Maps API -->
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
-</body>
-</html>
+      const yearlyRent = monthlyRent * 12;
+      const increment = (monthlyRent * 6) * 0.05; // developer fee
+      const advancePayment = (yearlyRent * 0.5) + increment;
+      const tenantTotal = advancePayment + 50; // tenant adds 50 agent fee
