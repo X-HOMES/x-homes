@@ -44,6 +44,7 @@
       border-radius: 8px;
       cursor: pointer;
       font-size: 16px;
+      margin-right: 10px;
     }
     button:hover {
       background: darkred;
@@ -56,12 +57,20 @@
       border-radius: 8px;
       display: none;
     }
+    .preview-box {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <header>Landlord Agreement Setup</header>
   <div class="container">
-    <h2>Attach Tenancy Agreement</h2>
+    <h2>Attach / Update Tenancy Agreement</h2>
     <p><strong>Property ID:</strong> <span id="propertyId"></span></p>
 
     <label><strong>Rules & Regulations:</strong></label>
@@ -71,10 +80,13 @@
     <textarea id="agreement" placeholder="Write official tenancy agreement terms here..."></textarea>
 
     <button onclick="saveAgreement()">Save Agreement</button>
+    <button onclick="previewAgreement()">Preview Agreement</button>
 
     <div class="success" id="successMsg">✅ Agreement saved successfully!</div>
+    <div class="preview-box" id="previewBox"></div>
   </div>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
@@ -88,14 +100,31 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // Get propertyId from query string
     const urlParams = new URLSearchParams(window.location.search);
     const propertyId = urlParams.get("id");
     document.getElementById("propertyId").textContent = propertyId;
 
+    const rulesInput = document.getElementById("rules");
+    const agreementInput = document.getElementById("agreement");
+    const previewBox = document.getElementById("previewBox");
+
+    // Load existing agreement if available
+    async function loadAgreement() {
+      try {
+        const docSnap = await db.collection("properties").doc(propertyId).get();
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          if (data.rules) rulesInput.value = data.rules;
+          if (data.agreement) agreementInput.value = data.agreement;
+        }
+      } catch (error) {
+        alert("Error loading agreement: " + error.message);
+      }
+    }
+
     async function saveAgreement() {
-      const rules = document.getElementById("rules").value;
-      const agreement = document.getElementById("agreement").value;
+      const rules = rulesInput.value.trim();
+      const agreement = agreementInput.value.trim();
 
       if (!rules || !agreement) {
         alert("Please fill out both fields before saving.");
@@ -116,6 +145,34 @@
         alert("Error saving agreement: " + error.message);
       }
     }
+
+    function previewAgreement() {
+      const rules = rulesInput.value.trim();
+      const agreement = agreementInput.value.trim();
+
+      if (!rules && !agreement) {
+        alert("No agreement content to preview.");
+        return;
+      }
+
+      previewBox.style.display = "block";
+      previewBox.innerHTML = `
+        <h3>📜 Agreement Preview</h3>
+        <p><strong>Rules & Regulations:</strong></p>
+        <p>${rules || "Not provided"}</p>
+        <p><strong>Tenancy Agreement Terms:</strong></p>
+        <p>${agreement || "Not provided"}</p>
+      `;
+    }
+
+    // Load when logged in
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        loadAgreement();
+      } else {
+        window.location.href = "login.html";
+      }
+    });
   </script>
 </body>
 </html>
