@@ -3,83 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>X-Homes | Landlord Dashboard</title>
+  <title>X-Homes | Tenant Dashboard</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
     h1, h2 { color: #333; }
-    .header { display: flex; justify-content: space-between; align-items: center; }
-    .badge { background: red; color: #fff; border-radius: 50%; padding: 5px 10px; margin-left: 8px; }
+    .search-bar { margin-bottom: 20px; }
     .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .property-images img { width: 100px; height: 80px; margin-right: 5px; border-radius: 5px; }
+    .proximities span { background: #eee; padding: 3px 8px; margin-right: 5px; border-radius: 5px; font-size: 12px; }
     .actions button { margin-right: 10px; }
-    .property-form { margin-top: 30px; }
-    .checkboxes label { margin-right: 15px; }
-    .notification { border-bottom: 1px solid #ddd; padding: 10px 0; }
-    .notification:last-child { border-bottom: none; }
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-    .modal-content { background: #fff; padding: 20px; margin: 10% auto; width: 400px; border-radius: 10px; }
+    .responses { margin-top: 10px; background: #f1f1f1; padding: 10px; border-radius: 8px; }
+    .response { margin-bottom: 5px; font-size: 14px; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Landlord Dashboard</h1>
-    <div>
-      🔔 Notifications <span id="notifCount" class="badge">0</span>
-    </div>
+  <h1>Tenant Dashboard</h1>
+
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by location (e.g. Kumasi, Accra)" style="width:70%; padding:8px;">
+    <button onclick="searchProperties()">Search</button>
   </div>
 
-  <!-- Notifications Panel -->
-  <div class="card">
-    <h2>Tenant Notifications</h2>
-    <div id="notifications"></div>
-  </div>
-
-  <!-- Respond Modal -->
-  <div id="respondModal" class="modal">
-    <div class="modal-content">
-      <h3>Respond to Tenant</h3>
-      <textarea id="responseMessage" rows="4" style="width:100%;"></textarea>
-      <br><br>
-      <button onclick="sendResponse('platform')">Send (Platform)</button>
-      <button onclick="sendResponse('email')">Send (Email)</button>
-      <button onclick="sendResponse('sms')">Send (SMS)</button>
-      <button onclick="closeModal()">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Property Upload Section -->
-  <div class="card property-form">
-    <h2>Upload Property</h2>
-    <form id="propertyForm">
-      <input type="text" id="title" placeholder="Property Title" required><br><br>
-      <input type="text" id="location" placeholder="Location" required><br><br>
-      <input type="number" id="price" placeholder="Rent per month (GHS)" required><br><br>
-
-      <div class="checkboxes">
-        <label><input type="checkbox" value="School"> School</label>
-        <label><input type="checkbox" value="Hospital"> Hospital</label>
-        <label><input type="checkbox" value="Market"> Market</label>
-        <label><input type="checkbox" value="Water"> Water</label>
-        <label><input type="checkbox" value="Electricity"> Electricity</label>
-      </div><br>
-
-      <label>Upload up to 3 Images:</label><br>
-      <input type="file" id="images" accept="image/*" multiple><br><br>
-
-      <textarea id="agreement" placeholder="Enter rental agreement..." rows="5"></textarea><br><br>
-
-      <button type="submit">Add Property</button>
-    </form>
-  </div>
+  <!-- Property Listings -->
+  <div id="propertyList"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, where, getDocs, onSnapshot, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+    import { getFirestore, collection, getDocs, addDoc, doc, getDoc, query, where, orderBy, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
@@ -93,113 +48,98 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
-    let currentLandlordId = null;
-    let selectedNotificationId = null;
+    let currentTenantId = null;
+    let properties = [];
 
     // Auth check
     onAuthStateChanged(auth, user => {
       if (user) {
-        currentLandlordId = user.uid;
-        loadNotifications();
+        currentTenantId = user.uid;
+        loadProperties();
       } else {
         window.location.href = "login.html";
       }
     });
 
-    // Load notifications
-    function loadNotifications() {
-      const q = query(collection(db, "notifications"), where("landlordId", "==", currentLandlordId));
-      onSnapshot(q, snapshot => {
-        let notifHTML = "";
-        let unread = 0;
-        snapshot.forEach(docSnap => {
-          const n = docSnap.data();
-          if (n.status === "pending") unread++;
-          notifHTML += `
-            <div class="notification">
-              <p><strong>${n.tenantName}</strong> (${n.tenantEmail}, ${n.tenantPhone})</p>
-              <p>Interested in: ${n.propertyTitle}</p>
-              <p>Status: ${n.status}</p>
-              <button onclick="markViewed('${docSnap.id}')">Mark Viewed</button>
-              <button onclick="openModal('${docSnap.id}')">Respond</button>
-            </div>
-          `;
-        });
-        document.getElementById("notifications").innerHTML = notifHTML || "<p>No notifications yet</p>";
-        document.getElementById("notifCount").textContent = unread;
+    // Load properties
+    async function loadProperties() {
+      const querySnapshot = await getDocs(collection(db, "properties"));
+      properties = [];
+      querySnapshot.forEach(docSnap => {
+        properties.push({ id: docSnap.id, ...docSnap.data() });
       });
+      renderProperties(properties);
     }
 
-    // Mark as viewed
-    window.markViewed = async (id) => {
-      const notifRef = doc(db, "notifications", id);
-      await updateDoc(notifRef, { status: "viewed" });
+    // Search
+    window.searchProperties = () => {
+      const term = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = properties.filter(p => p.location.toLowerCase().includes(term));
+      renderProperties(filtered);
     };
 
-    // Respond modal
-    window.openModal = (id) => {
-      selectedNotificationId = id;
-      document.getElementById("respondModal").style.display = "block";
-    };
-    window.closeModal = () => {
-      document.getElementById("respondModal").style.display = "none";
-    };
+    // Render
+    async function renderProperties(list) {
+      const container = document.getElementById("propertyList");
+      container.innerHTML = "";
 
-    // Send response
-    window.sendResponse = async (mode) => {
-      if (!selectedNotificationId) return;
-      const message = document.getElementById("responseMessage").value;
-      if (!message) return alert("Message cannot be empty");
+      for (let p of list) {
+        let responsesHTML = "";
+        const notifQuery = query(collection(db, "notifications"), where("tenantId", "==", currentTenantId), where("propertyId", "==", p.id));
+        const notifSnap = await getDocs(notifQuery);
+        notifSnap.forEach(async notifDoc => {
+          const responsesRef = collection(db, "notifications", notifDoc.id, "responses");
+          const responseSnap = await getDocs(responsesRef);
+          responseSnap.forEach(r => {
+            const res = r.data();
+            responsesHTML += `<div class="response"><strong>${res.mode}:</strong> ${res.message}</div>`;
+          });
+        });
 
-      const notifRef = doc(db, "notifications", selectedNotificationId);
-      const responsesRef = collection(notifRef, "responses");
-      await addDoc(responsesRef, {
-        message,
-        mode,
-        timestamp: serverTimestamp()
-      });
-      await updateDoc(notifRef, { status: "responded" });
-
-      alert(`Response sent via ${mode}`);
-      closeModal();
-    };
-
-    // Property upload
-    const propertyForm = document.getElementById("propertyForm");
-    propertyForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("title").value;
-      const location = document.getElementById("location").value;
-      const price = document.getElementById("price").value;
-      const proximities = [...document.querySelectorAll(".checkboxes input:checked")].map(cb => cb.value);
-      const agreement = document.getElementById("agreement").value;
-
-      // Upload images
-      const files = document.getElementById("images").files;
-      let imageUrls = [];
-      for (let i = 0; i < Math.min(files.length, 3); i++) {
-        const storageRef = ref(storage, `properties/${currentLandlordId}/${Date.now()}_${files[i].name}`);
-        await uploadBytes(storageRef, files[i]);
-        const url = await getDownloadURL(storageRef);
-        imageUrls.push(url);
+        container.innerHTML += `
+          <div class="card">
+            <h3>${p.title}</h3>
+            <p><strong>Location:</strong> ${p.location}</p>
+            <p><strong>Price:</strong> GHS ${p.price}/month</p>
+            <div class="property-images">
+              ${p.images?.map(img => `<img src="${img}" alt="Property">`).join("") || ""}
+            </div>
+            <div class="proximities">
+              ${p.proximities?.map(pr => `<span>${pr}</span>`).join("") || ""}
+            </div>
+            <p><strong>Agreement:</strong> ${p.agreement || "No agreement uploaded"}</p>
+            <div class="actions">
+              <button onclick="notifyLandlord('${p.id}','${p.title}','${p.landlordId}')">Notify Landlord</button>
+              <button onclick="bookProperty('${p.id}')">Book Now</button>
+            </div>
+            <div class="responses">${responsesHTML || "<i>No responses yet</i>"}</div>
+          </div>
+        `;
       }
+    }
 
-      await addDoc(collection(db, "properties"), {
-        landlordId: currentLandlordId,
-        title,
-        location,
-        price,
-        proximities,
-        agreement,
-        images: imageUrls,
+    // Notify landlord
+    window.notifyLandlord = async (propertyId, propertyTitle, landlordId) => {
+      const tenant = auth.currentUser;
+      await addDoc(collection(db, "notifications"), {
+        landlordId,
+        tenantId: tenant.uid,
+        tenantName: tenant.displayName || "Anonymous",
+        tenantEmail: tenant.email || "",
+        tenantPhone: tenant.phoneNumber || "",
+        propertyId,
+        propertyTitle,
+        status: "pending",
         timestamp: serverTimestamp()
       });
+      alert("Notification sent to landlord!");
+    };
 
-      alert("Property uploaded successfully!");
-      propertyForm.reset();
-    });
+    // Book property (placeholder for now)
+    window.bookProperty = (propertyId) => {
+      alert(`Booking flow for property ${propertyId} will be implemented next.`);
+    };
   </script>
 </body>
 </html>
